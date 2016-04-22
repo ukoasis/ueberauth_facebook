@@ -30,7 +30,7 @@ defmodule Ueberauth.Strategy.Facebook do
       |> maybe_replace_param(conn, "scope", :default_scope)
       |> Enum.filter(fn {k,_v} -> Enum.member?(allowed_params, k) end)
       |> Enum.map(fn {k,v} -> {String.to_existing_atom(k), v} end)
-      |> Keyword.put(:redirect_uri, callback_url(conn))
+      |> Keyword.put(:redirect_uri, redirect_uri(conn))
       |> Ueberauth.Strategy.Facebook.OAuth.authorize_url!
 
     redirect!(conn, authorize_url)
@@ -40,7 +40,7 @@ defmodule Ueberauth.Strategy.Facebook do
   Handles the callback from Facebook.
   """
   def handle_callback!(%Plug.Conn{params: %{"code" => code}} = conn) do
-    opts = [redirect_uri: callback_url(conn)]
+    opts = [redirect_uri: redirect_uri(conn)]
     token = Ueberauth.Strategy.Facebook.OAuth.get_token!([code: code], opts)
 
     if token.access_token == nil do
@@ -181,6 +181,16 @@ defmodule Ueberauth.Strategy.Facebook do
         name,
         option(params[name], conn, config_key)
       )
+    end
+  end
+
+  defp redirect_uri(conn) do
+    oauth_config = Application.get_env(:ueberauth, Ueberauth.Strategy.Facebook.OAuth)
+    case List.keyfind(oauth_config, :redirect_uri, 0) do
+      {:redirect_uri, redirect_uri} ->
+        redirect_uri
+      _ ->
+        callback_url(conn)
     end
   end
 end
